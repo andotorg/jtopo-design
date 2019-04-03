@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head style="height: 100%;">
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/font-awesome.min.css">
+    <style>
+        html, body { height: 100%; width: 100%; }
+        canvas { display: block; }
+        .fa{
+            font-size: 24px;
+        }
+        .fa-save:hover{
+            color: #008eff;
+        }
+        .tools-bar{
+            width: 50px;
+            height: 95%;
+            text-align: center;
+            float: left;
+            background-color: #FFFFFF;
+            position: absolute;
+            left: 0px;
+            top: 50px;
+            box-shadow: inset 12px 7px 16px 0 rgba(0,0,0,0.1);
+        }
+        .hid-input{
+            width: 100px;
+            height: 30px;
+            position: absolute;
+            top: 525px;
+            left: 834px;
+            display: none;
+        }
+        .icon-50{
+            width: 50px;
+            height: 60px;
+            padding-top: 5px;
+        }
+        .icon-50:hover{
+            background-color: #00ADEE;
+        }
+        .top-bar{
+            width: 80%;
+            height: 50px;
+            float: left;
+            line-height: 50px;
+            text-align: center;
+        }
+        .top-bar>span{
+            float: right;
+            margin-right: 10px;
+        }
+        .top-lan{
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            height: 50px;
+            width: 100%;
+            background-color: #FFFFFF;
+            box-shadow: 3px 3px 5px 0px rgba(0,0,0,0.1);
+        }
+        .menu{
+            display:none;
+            position: absolute;
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 10px;
+            list-style: none;
+            box-shadow: 0px 0px 5px 0px #0000002e;
+            cursor: pointer;
+        }
+        .menu>li:hover{
+
+        }
+    </style>
+</head>
+<body>
+    <input type="number" id="jtopo_textfield" class="hid-input" onkeydown="if(event.keyCode==13)this.blur();" value="Node_0" />
+    <div>
+        <div class="top-lan">
+            <div style="width: 20%;  height: 50px; float: left;">
+                <a href="https://andot.org"><img src="images/logo.png" width="150"></a>
+                标题：<span id="title">未标题</span>
+            </div>
+            <div class="top-bar">
+                <span onclick="save()">
+                    <i class="fa fa-save"></i>
+                </span>
+            </div>
+        </div>
+        <div>
+            <div id="toolsBar" class="tools-bar">
+                <div class="icon-50">
+                    <img src="images/path/yjt2.png" width="50">
+                </div>
+                <div class="icon-50">
+                    <img src="images/path/yjt1.png" width="50">
+                </div>
+                <div class="icon-50">
+                    <img src="images/path/yjt3.png" style="margin-top: 5px;" width="40">
+                </div>
+                <div class="icon-50">
+                    <img src="images/path/yjt4.png" width="50">
+                </div>
+            </div>
+            <div id="designView" style="width: 100%; height: 100%; float: left; background-color: #d0e9c6;">
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <ul id="contextmenu" class="menu">
+        <li><a>删除该节点</a></li>
+        <li><a>取消</a></li>
+    </ul>
+
+    <div id="msg" style="display: none; background-color: rgba(0,0,0,.6); width: 200px; height: 30px; position: absolute; top: 150px; left: 40%; line-height: 30px; border-radius: 5px; text-align: center; color: #fff;">
+
+    </div>
+
+    <script src="js/jquery-3.2.1.min.js"></script>
+    <script src="js/jquery-ui-1.10.4.js"></script>
+    <script src="js/jtopo-0.4.8-min.js"></script>
+    <script>
+        var canvas = document.getElementById('canvas');
+        var stage = new JTopo.Stage(canvas); // 创建一个舞台对象
+        var scene = new JTopo.Scene(stage); // 创建一个场景对象
+        stage.wheelZoom = 0.8;
+        stage.eagleEye.visible = true;
+        stage.zoom = 1;
+        //stage.setCenter(900, 500);
+        var $w=$("body").width();  //获取父级的宽度
+        var $h=$("body").height();  //获取父级的宽度
+        canvas.width = $w;
+        canvas.height = $h;
+        canvas.backgroundColor = "#d0e9c6";
+        $(document).ready(function(){
+            $("#title").text(getQueryString("name"));
+            $.ajax({
+                "type": "GET",
+                "url": "/pathNodeActionList",
+                "async": false,
+                "data": {"pathId": getQueryString("id")},
+                "dataType": "json",
+                "success": function(result){
+                    if(result.code == 200){
+                        for (var item in result.data){
+                            addNode(result.data[item])
+                        }
+                    }else{
+                        showmsg(result.msg, 0);
+                    }
+                },
+                "error": function(){
+                    showmsg("数据获取失败");
+                }
+            });
+        });
+
+        var cnode =null;
+        setInterval(function(){
+            scene.findElements(function(eles){
+                cnode = eles;
+                if(cnode != null){
+                    cnode.setImage(cnode.image.src.replace("g", "y"));
+                }
+                eles.setImage(eles.image.src.replace("y", "g"));
+                setTimeout(function(){
+                    console.log(1)
+                }, 3000)
+            });
+        }, 1000);
+
+        function getQueryString(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i");
+            var r = window.location.search.substr(1).match(reg);
+            if (r != null) return decodeURI(r[2]);
+            return null;
+        }
+
+        var down = false, imgs = "";
+        document.getElementById("toolsBar").onmousedown = function(e){
+            down = true;
+            imgs = e.path[0].src;
+        };
+        document.getElementById("designView").onmousemove = function() {
+            var div = document.getElementById("designView");
+            var x = event.clientX;
+            var y = event.clientY;
+            var divx1 = div.offsetLeft;
+            var divy1 = div.offsetTop;
+            var divx2 = div.offsetLeft + div.offsetWidth;
+            var divy2 = div.offsetTop + div.offsetHeight;
+            if (x > divx1 || x < divx2 || y > divy1 || y < divy2) {
+                if(down){
+                    var node = {
+                        nodeOrder: "请输入顺序号",
+                        x: x,
+                        y: y,
+                        img: imgs,
+                        id: 0
+                    };
+                    addNode(node);
+                    down = false;
+                }
+            }
+        };
+
+        function addNode(node){
+            var aa = new JTopo.Node();
+            aa.text = node.nodeOrder;
+            aa.x_id = node.id;
+            aa.fontColor = "0,0,0";
+            aa.font = "18px Consolas";
+            aa.setImage(node.img);
+            aa.setSize(50, 50);
+            aa.setLocation(node.x, node.y);
+            aa.addEventListener('mouseup', function(event){
+                currentNode = this;
+                handler(event);
+            });
+            aa.mouseup(function(event){
+                var node = {
+                    nodeOrder: event.target.text,
+                    x: event.target.x,
+                    y: event.target.y
+                };
+                console.log(node)
+            });
+            scene.add(aa);
+        }
+        var textfield = $("#jtopo_textfield");
+        scene.dbclick(function(event){
+            if(event.target == null) return;
+            var e = event.target;
+            textfield.css({
+                top: event.pageY,
+                left: event.pageX - e.width/2
+            }).show().val(e.text).focus().select();
+            textfield[0].JTopoNode = e;
+        });
+
+        $("#jtopo_textfield").blur(function(){
+            textfield[0].JTopoNode.text = textfield.hide().val();
+        });
+
+        var local = window.localStorage;
+        function save(){
+            var b = false;
+            var a = new Array();
+            scene.findElements(function(eles){
+                var type = 0, src = eles.image.src;
+                if(src.indexOf("yjt1.png")>-1){
+                    type = 1;
+                }else if(src.indexOf("yjt2.png")>-1){
+                    type = 2;
+                }else if(src.indexOf("yjt3.png")>-1){
+                    type = 3;
+                }else if(src.indexOf("yjt4.png")>-1){
+                    type = 4;
+                }
+                var node = {
+                    nodeOrder: eles.text,
+                    x: eles.x,
+                    y: eles.y,
+                    img: eles.image.src,
+                    type: type,
+                    pathId: getQueryString("id"),
+                    id: eles.x_id
+                };
+                console.log(node);
+                if(Number(node.nodeOrder)+"" == "NaN"){
+                    showmsg("节点名称必须为数字！", 3);
+                    b = true;
+                    return;
+                }
+                a.push(node);
+            });
+            if(b){
+                return;
+            }
+            local.setItem("nodeList", JSON.stringify(a));
+            $.ajax({
+                "type": "POST",
+                "url": "/pathNodeActionByList",
+                "data": JSON.stringify(a),
+                "contentType": "application/json",
+                "dataType": "json",
+                "success": function(result){
+                    if(result.code == 200){
+                        showmsg("保存成功", 2);
+                    }else{
+                        showmsg(result.msg, 0);
+                    }
+                },
+                "error": function(){
+                    showmsg("保存失败", 2);
+                }
+            });
+        }
+
+        var currentNode = null;
+        function handler(event){
+            if(event.button == 2){// 右键
+                // 当前位置弹出菜单（div）
+                $("#contextmenu").css({
+                    top: event.pageY,
+                    left: event.pageX
+                }).show();
+            }
+        }
+
+        $("#contextmenu a").click(function() {
+            var text = $(this).text();
+            if (text == '删除该节点') {
+                scene.remove(currentNode);
+                currentNode = null;
+            }
+            $("#contextmenu").css("display", "none");
+        });
+
+        function showmsg(msg, s){
+            $("#msg").css("display", "block");
+            $("#msg").text(msg);
+            if(s != 0)
+                setTimeout(function(){
+                    $("#msg").css("display", "none");
+                }, s*1000)
+        }
+
+        var msgClickNum = 0;
+        $("#msg").click(function(){
+            msgClickNum++;
+            if(msgClickNum == 2){
+                $("#msg").css("display", "none");
+                msgClickNum = 0;
+            }else{
+                alert("在点击一次隐藏！");
+            }
+        });
+    </script>
+</body>
+</html>
